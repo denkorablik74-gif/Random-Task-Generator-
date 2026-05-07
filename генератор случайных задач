@@ -1,0 +1,120 @@
+import tkinter as tk
+from tkinter import ttk
+import random
+import json
+import os
+
+class TaskGenerator:
+    def __init__(self, master):
+        self.master = master
+        master.title("Генератор случайных задач")
+
+        self.tasks = [
+            {"task": "Прочитать статью о Python", "type": "учёба"},
+            {"task": "Сделать зарядку 15 минут", "type": "спорт"},
+            {"task": "Проверить почту", "type": "работа"},
+            {"task": "Послушать подкаст", "type": "учёба"},
+            {"task": "Прогуляться на свежем воздухе", "type": "спорт"},
+            {"task": "Разобрать рабочий документ", "type": "работа"},
+        ]
+        self.history = []
+        self.history_file = "task_history.json"
+        self.load_history()
+
+        # --- Интерфейс ---
+
+        # Фрейм для генерации задачи
+        self.generate_frame = tk.Frame(master)
+        self.generate_frame.pack(pady=10)
+
+        self.generate_button = tk.Button(self.generate_frame, text="Сгенерировать задачу", command=self.generate_task)
+        self.generate_button.pack()
+
+        self.current_task_label = tk.Label(self.generate_frame, text="", font=("Arial", 12))
+        self.current_task_label.pack(pady=10)
+
+        # Фрейм для добавления новой задачи
+        self.add_task_frame = tk.LabelFrame(master, text="Добавить новую задачу")
+        self.add_task_frame.pack(pady=10)
+
+        tk.Label(self.add_task_frame, text="Задача:").grid(row=0, column=0, padx=5, pady=5)
+        self.new_task_entry = tk.Entry(self.add_task_frame, width=40)
+        self.new_task_entry.grid(row=0, column=1, padx=5, pady=5)
+
+        tk.Label(self.add_task_frame, text="Тип:").grid(row=1, column=0, padx=5, pady=5)
+        self.task_type_combobox = ttk.Combobox(self.add_task_frame, values=["учёба", "спорт", "работа", "другое"], width=37)
+        self.task_type_combobox.grid(row=1, column=1, padx=5, pady=5)
+        self.task_type_combobox.set("другое") # Значение по умолчанию
+
+        self.add_button = tk.Button(self.add_task_frame, text="Добавить задачу", command=self.add_new_task)
+        self.add_button.grid(row=2, columnspan=2, pady=10)
+
+        # Фрейм для истории задач
+        self.history_frame = tk.LabelFrame(master, text="История задач")
+        self.history_frame.pack(pady=10, fill=tk.BOTH, expand=True)
+
+        # Фильтрация
+        self.filter_frame = tk.Frame(self.history_frame)
+        self.filter_frame.pack(pady=5)
+        tk.Label(self.filter_frame, text="Фильтр по типу:").pack(side=tk.LEFT, padx=5)
+        self.filter_combobox = ttk.Combobox(self.filter_frame, values=["все", "учёба", "спорт", "работа"], width=15)
+        self.filter_combobox.set("все")
+        self.filter_combobox.pack(side=tk.LEFT, padx=5)
+        self.filter_combobox.bind("<<ComboboxSelected>>", self.apply_filter)
+
+        self.history_listbox = tk.Listbox(self.history_frame, height=10, width=60, font=("Arial", 10))
+        self.history_listbox.pack(padx=10, pady=5, fill=tk.BOTH, expand=True)
+
+        self.load_history()
+        self.display_history()
+
+    def generate_task(self):
+        if not self.tasks:
+            self.current_task_label.config(text="Нет доступных задач!")
+            return
+
+        selected_task = random.choice(self.tasks)
+        self.current_task_label.config(text=f"Ваша задача: {selected_task['task']} ({selected_task['type']})")
+        self.history.append(selected_task)
+        self.save_history()
+        self.display_history()
+
+    def add_new_task(self):
+        task_text = self.new_task_entry.get().strip()
+        task_type = self.task_type_combobox.get()
+
+        if not task_text:
+            tk.messagebox.showwarning("Ошибка ввода", "Поле задачи не может быть пустым.")
+            return
+
+        self.tasks.append({"task": task_text, "type": task_type})
+        self.new_task_entry.delete(0, tk.END)
+        self.task_type_combobox.set("другое")
+        tk.messagebox.showinfo("Успех", "Задача успешно добавлена!")
+
+    def load_history(self):
+        if os.path.exists(self.history_file):
+            with open(self.history_file, "r", encoding="utf-8") as f:
+                self.history = json.load(f)
+
+    def save_history(self):
+        with open(self.history_file, "w", encoding="utf-8") as f:
+            json.dump(self.history, f, indent=4, ensure_ascii=False)
+
+    def display_history(self, filtered_tasks=None):
+        self.history_listbox.delete(0, tk.END)
+        tasks_to_display = filtered_tasks if filtered_tasks is not None else self.history
+        for i, item in enumerate(tasks_to_display):
+            self.history_listbox.insert(tk.END, f"{i+1}. {item['task']} ({item['type']})")
+
+    def apply_filter(self, event=None):
+        selected_type = self.filter_combobox.get()
+        if selected_type == "все":
+            self.display_history()
+        else:
+            filtered_tasks = [task for task in self.history if task["type"] == selected_type]
+            self.display_history(filtered_tasks)
+
+root = tk.Tk()
+app = TaskGenerator(root)
+root.mainloop()
